@@ -14,27 +14,28 @@
  * limitations under the License.
  */
 
+// Modified by Serkan ÖZAL on 15/02/2017
+
 #include <sstream>
 #include "asyncProfiler.h"
 
-
 extern "C" JNIEXPORT void JNICALL
-Java_one_profiler_AsyncProfiler_start0(JNIEnv* env, jobject unused, jint interval) {
+Java_com_opsgenie_profile_AsyncProfiler_start(JNIEnv* env, jclass clazz, jint interval) {
     Profiler::_instance.start(interval ? interval : DEFAULT_INTERVAL);
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_one_profiler_AsyncProfiler_stop0(JNIEnv* env, jobject unused) {
+Java_com_opsgenie_profile_AsyncProfiler_stop(JNIEnv* env, jclass clazz) {
     Profiler::_instance.stop();
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_one_profiler_AsyncProfiler_getSamples(JNIEnv* env, jobject unused) {
+Java_com_opsgenie_profile_AsyncProfiler_getSamples(JNIEnv* env, jclass clazz) {
     return Profiler::_instance.samples();
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_one_profiler_AsyncProfiler_dumpTraces0(JNIEnv* env, jobject unused, jint max_traces) {
+Java_com_opsgenie_profile_AsyncProfiler_dumpTraces(JNIEnv* env, jclass clazz, jint max_traces) {
     std::ostringstream out;
     Profiler::_instance.summary(out);
     Profiler::_instance.dumpTraces(out, max_traces ? max_traces : DEFAULT_TRACES_TO_DUMP);
@@ -42,7 +43,7 @@ Java_one_profiler_AsyncProfiler_dumpTraces0(JNIEnv* env, jobject unused, jint ma
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_one_profiler_AsyncProfiler_dumpMethods0(JNIEnv* env, jobject unused) {
+Java_com_opsgenie_profile_AsyncProfiler_dumpMethods(JNIEnv* env, jclass clazz) {
     std::ostringstream out;
     Profiler::_instance.summary(out);
     Profiler::_instance.dumpMethods(out);

@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+// Modified by Serkan ÖZAL on 15/02/2017
+
 #include <dlfcn.h>
 #include <jvmti.h>
 #include <iostream>
@@ -24,7 +26,6 @@
 #define DEFAULT_INTERVAL          10
 #define DEFAULT_DURATION          3600
 #define DEFAULT_TRACES_TO_DUMP    500
-
 
 typedef unsigned long long u64;
 
@@ -87,7 +88,7 @@ class MethodSample {
 
 class Profiler {
   private:
-    bool _running;
+    volatile bool _running;
     int _calls_total;
     // See ./hotspot/src/share/vm/prims/forte.cpp
     int _calls_non_java;

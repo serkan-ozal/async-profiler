@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+// Modified by Serkan ÖZAL on 15/02/2017
+
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,7 +32,6 @@ Profiler Profiler::_instance;
 static void sigprofHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     Profiler::_instance.recordSample(ucontext);
 }
-
 
 MethodName::MethodName(jmethodID method) {
     jclass method_class;
@@ -145,8 +146,8 @@ void Profiler::storeMethod(jmethodID method) {
         if (++i == MAX_CALLTRACES) i = 0;
     } while (i != bucket);
 
-    _methods[i]._call_count = 1;
     _methods[i]._method = method;
+    _methods[i]._call_count = 1;
 }
 
 void Profiler::checkDeadline() {
@@ -340,22 +341,31 @@ void Profiler::dumpRawTraces(std::ostream& out) {
 }
 
 void Profiler::dumpTraces(std::ostream& out, int max_traces) {
-    if (_running) return;
+    CallTraceSample *traces;
+    CallTraceSample *snapshot_traces = NULL;
+
+    if (!_running) {
+        traces = _traces;
+    } else {
+        snapshot_traces = new CallTraceSample[MAX_CALLTRACES];
+        memcpy(snapshot_traces, _traces, sizeof(_traces));
+        traces = snapshot_traces;
+    }    
 
     float percent = 100.0f / _calls_total;
     char buf[1024];
 
-    qsort(_traces, MAX_CALLTRACES, sizeof(CallTraceSample), CallTraceSample::comparator);
+    qsort(traces, MAX_CALLTRACES, sizeof(CallTraceSample), CallTraceSample::comparator);
     if (max_traces > MAX_CALLTRACES) max_traces = MAX_CALLTRACES;
 
     for (int i = 0; i < max_traces; i++) {
-        int samples = _traces[i]._call_count;
+        int samples = traces[i]._call_count;
         if (samples == 0) break;
 
         snprintf(buf, sizeof(buf), "Samples: %d (%.2f%%)\n", samples, samples * percent);
         out << buf;
 
-        CallTraceSample& trace = _traces[i];
+        CallTraceSample& trace = traces[i];
         for (int j = 0; j < trace._num_frames; j++) {
             jmethodID method = _frames[trace._offset + j];
             if (method != NULL) {
@@ -366,22 +376,39 @@ void Profiler::dumpTraces(std::ostream& out, int max_traces) {
         }
         out << "\n";
     }
+
+    if (snapshot_traces != NULL) {
+        free(snapshot_traces);
+    }
 }
 
 void Profiler::dumpMethods(std::ostream& out) {
-    if (_running) return;
+    MethodSample *methods;
+    MethodSample *snapshot_methods = NULL;
+
+    if (!_running) {
+        methods = _methods;
+    } else {
+        snapshot_methods = new MethodSample[MAX_CALLTRACES];
+        memcpy(snapshot_methods, _methods, sizeof(_methods));
+        methods = snapshot_methods;
+    }    
 
     float percent = 100.0f / _calls_total;
     char buf[1024];
 
-    qsort(_methods, MAX_CALLTRACES, sizeof(MethodSample), MethodSample::comparator);
+    qsort(methods, MAX_CALLTRACES, sizeof(MethodSample), MethodSample::comparator);
 
     for (int i = 0; i < MAX_CALLTRACES; i++) {
-        int samples = _methods[i]._call_count;
-        if (samples == 0) break;
+        int samples = methods[i]._call_count;
+        if (samples == 0 || methods[i]._method == NULL) break;
 
-        MethodName mn(_methods[i]._method);
+        MethodName mn(methods[i]._method);
         snprintf(buf, sizeof(buf), "%6d (%.2f%%) %s.%s\n", samples, samples * percent, mn.holder(), mn.name());
         out << buf;
+    }
+
+    if (snapshot_methods != NULL) {
+        free(snapshot_methods);
     }
 }
