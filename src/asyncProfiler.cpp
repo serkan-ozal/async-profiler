@@ -23,6 +23,8 @@
 #include <signal.h>
 #include <sys/time.h>
 #include <sys/param.h>
+#include <sys/types.h>
+#include <pthread.h>
 #include "asyncProfiler.h"
 #include "vmEntry.h"
 
@@ -54,6 +56,14 @@ MethodName::~MethodName() {
     jvmti->Deallocate((unsigned char*)_class_sig);
 }
 
+u64 Profiler::getThreadProfilerId() {
+    //pthread_t ptid = pthread_self();
+    //u64 thread_id;
+    //memcpy(&thread_id, &ptid, std::min(sizeof(thread_id), sizeof(ptid)));
+    //return (u64) thread_id;
+    return (u64) pthread_self();
+}
+
 void Profiler::frameBufferSize(int size) {
     if (size >= 0) {
         _frameBufferSize = size;
@@ -62,11 +72,13 @@ void Profiler::frameBufferSize(int size) {
     }
 }
 
-u64 Profiler::hashCallTrace(ASGCT_CallTrace* trace) {
+u64 Profiler::hashCallTrace(ASGCT_CallTrace* trace, u64 thread_profiler_id) {
     const u64 M = 0xc6a4a7935bd1e995LL;
     const int R = 47;
 
-    u64 h = trace->num_frames * M;
+    u64 h = trace->num_frames * thread_profiler_id;
+
+    h *= M;
 
     for (int i = 0; i < trace->num_frames; i++) {
         u64 k = (u64) trace->frames[i].method_id;
@@ -85,7 +97,8 @@ u64 Profiler::hashCallTrace(ASGCT_CallTrace* trace) {
 }
 
 void Profiler::storeCallTrace(ASGCT_CallTrace* trace) {
-    u64 hash = hashCallTrace(trace);
+    u64 thread_profiler_id = getThreadProfilerId();
+    u64 hash = hashCallTrace(trace, thread_profiler_id);
     int bucket = (int)(hash % MAX_CALLTRACES);
     int i = bucket;
 
@@ -110,6 +123,7 @@ void Profiler::storeCallTrace(ASGCT_CallTrace* trace) {
     _traces[i]._call_count = 1;
     _traces[i]._offset = _freeFrame;
     _traces[i]._num_frames = trace->num_frames;
+    _traces[i]._thread_profiler_id = thread_profiler_id;
 
     // Copying frames into frame buffer
     for (int i = 0; i < trace->num_frames; i++) {
@@ -315,22 +329,32 @@ void Profiler::summary(std::ostream& out) {
  * Total ...
  */
 void Profiler::dumpRawTraces(std::ostream& out) {
-    if (_running) return;
+    CallTraceSample *traces;
+    CallTraceSample *snapshot_traces = NULL;
+
+    if (!_running) {
+        traces = _traces;
+    } else {
+        snapshot_traces = new CallTraceSample[MAX_CALLTRACES];
+        memcpy(snapshot_traces, _traces, sizeof(_traces));
+        traces = snapshot_traces;
+    }    
 
     for (int i = 0; i < MAX_CALLTRACES; i++) {
-        const int samples = _traces[i]._call_count;
-        if (samples == 0) continue;
-        
-        out << samples << '\t' << _traces[i]._num_frames << '\t';
+        const int samples = traces[i]._call_count;
+        if (samples == 0) {
+            continue;
+        }
 
-        CallTraceSample& trace = _traces[i];
+        out << samples << '\t' << traces[i]._num_frames << '\t';
+
+        CallTraceSample& trace = traces[i];
         for (int j = 0; j < trace._num_frames; j++) {
             jmethodID method = _frames[trace._offset + j];
             if (method != NULL) {
                 if (j != 0) {
                     out << "\t\t";
                 }
-
                 MethodName mn(method);
                 out << mn.holder() << "::" << mn.name() << std::endl;
             }
@@ -338,9 +362,13 @@ void Profiler::dumpRawTraces(std::ostream& out) {
     }
     
     out << "Total" << std::endl;
+
+    if (snapshot_traces != NULL) {
+        free(snapshot_traces);
+    }
 }
 
-void Profiler::dumpTraces(std::ostream& out, int max_traces) {
+void Profiler::dumpTraces(std::ostream& out, int max_traces, u64 thread_profiler_id) {
     CallTraceSample *traces;
     CallTraceSample *snapshot_traces = NULL;
 
@@ -356,12 +384,20 @@ void Profiler::dumpTraces(std::ostream& out, int max_traces) {
     char buf[1024];
 
     qsort(traces, MAX_CALLTRACES, sizeof(CallTraceSample), CallTraceSample::comparator);
-    if (max_traces > MAX_CALLTRACES) max_traces = MAX_CALLTRACES;
+    if (max_traces > MAX_CALLTRACES) {
+        max_traces = MAX_CALLTRACES;
+    }
 
     for (int i = 0; i < max_traces; i++) {
-        int samples = traces[i]._call_count;
-        if (samples == 0) break;
+        if (thread_profiler_id != -1 && thread_profiler_id != traces[i]._thread_profiler_id) {
+            continue;
+        }
 
+        int samples = traces[i]._call_count;
+        if (samples == 0) {
+            break;
+        }
+            
         snprintf(buf, sizeof(buf), "Samples: %d (%.2f%%)\n", samples, samples * percent);
         out << buf;
 
@@ -401,8 +437,10 @@ void Profiler::dumpMethods(std::ostream& out) {
 
     for (int i = 0; i < MAX_CALLTRACES; i++) {
         int samples = methods[i]._call_count;
-        if (samples == 0 || methods[i]._method == NULL) break;
-
+        if (samples == 0 || methods[i]._method == NULL) {
+            break;
+        }
+                
         MethodName mn(methods[i]._method);
         snprintf(buf, sizeof(buf), "%6d (%.2f%%) %s.%s\n", samples, samples * percent, mn.holder(), mn.name());
         out << buf;

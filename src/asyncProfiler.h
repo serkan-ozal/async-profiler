@@ -64,6 +64,7 @@ class CallTraceSample {
     int _call_count;
     int _offset; // Offset in frame buffer
     int _num_frames;
+    u64 _thread_profiler_id;
 
   public:
     static int comparator(const void* s1, const void* s2) {
@@ -115,7 +116,7 @@ class Profiler {
     // Seconds resolution is enough
     time_t _deadline;
 
-    u64 hashCallTrace(ASGCT_CallTrace* trace);
+    u64 hashCallTrace(ASGCT_CallTrace* trace, u64 thread_profiler_id);
     void storeCallTrace(ASGCT_CallTrace* trace);
     u64 hashMethod(jmethodID method);
     void storeMethod(jmethodID method);
@@ -134,12 +135,13 @@ class Profiler {
     bool is_running() { return _running; }
     int samples()     { return _calls_total; }
 
+    u64 getThreadProfilerId();
     void frameBufferSize(int size);
-    void start(int interval, int duration = DEFAULT_DURATION);
+    void start(int interval = DEFAULT_INTERVAL, int duration = DEFAULT_DURATION);
     void stop();
     void summary(std::ostream& out);
     void dumpRawTraces(std::ostream& out);
-    void dumpTraces(std::ostream& out, int max_traces);
+    void dumpTraces(std::ostream& out, int max_traces, u64 thread_profiler_id = -1);
     void dumpMethods(std::ostream& out);
     void recordSample(void* ucontext);
 };

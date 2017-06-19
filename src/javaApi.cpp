@@ -19,13 +19,18 @@
 #include <sstream>
 #include "asyncProfiler.h"
 
-extern "C" JNIEXPORT void JNICALL
-Java_com_opsgenie_profile_AsyncProfiler_start(JNIEnv* env, jclass clazz, jint interval) {
-    Profiler::_instance.start(interval ? interval : DEFAULT_INTERVAL);
+extern "C" JNIEXPORT jlong JNICALL
+Java_com_opsgenie_profile_AsyncProfiler_getThreadProfilerId(JNIEnv* env, jclass clazz) {
+    return (long) Profiler::_instance.getThreadProfilerId();
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_opsgenie_profile_AsyncProfiler_stop(JNIEnv* env, jclass clazz) {
+Java_com_opsgenie_profile_AsyncProfiler_start0(JNIEnv* env, jclass clazz, jint interval, jint duration) {
+    Profiler::_instance.start(interval ? interval : DEFAULT_INTERVAL, duration ? duration : DEFAULT_DURATION);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_opsgenie_profile_AsyncProfiler_stop0(JNIEnv* env, jclass clazz) {
     Profiler::_instance.stop();
 }
 
@@ -35,10 +40,18 @@ Java_com_opsgenie_profile_AsyncProfiler_getSamples(JNIEnv* env, jclass clazz) {
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_opsgenie_profile_AsyncProfiler_dumpTraces(JNIEnv* env, jclass clazz, jint max_traces) {
+Java_com_opsgenie_profile_AsyncProfiler_dumpRawTraces(JNIEnv* env, jclass clazz) {
     std::ostringstream out;
     Profiler::_instance.summary(out);
-    Profiler::_instance.dumpTraces(out, max_traces ? max_traces : DEFAULT_TRACES_TO_DUMP);
+    Profiler::_instance.dumpRawTraces(out);
+    return env->NewStringUTF(out.str().c_str());
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_opsgenie_profile_AsyncProfiler_dumpTraces(JNIEnv* env, jclass clazz, jint max_traces, jlong thread_profiler_id) {
+    std::ostringstream out;
+    Profiler::_instance.summary(out);
+    Profiler::_instance.dumpTraces(out, max_traces ? max_traces : DEFAULT_TRACES_TO_DUMP, thread_profiler_id);
     return env->NewStringUTF(out.str().c_str());
 }
 
