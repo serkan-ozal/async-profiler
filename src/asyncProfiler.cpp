@@ -476,7 +476,7 @@ void Profiler::getLocalVariables(jthread thread) {
     jclass declaring_class_ptr;
     jvmtiLocalVariableEntry *table_ptr;
 
-    error = jvmti->GetStackTrace(thread, 0, 10, frames, &count);
+    error = jvmti->GetStackTrace(thread, 1, 10, frames, &count);
     if (checkJVMTIError(jvmti, error, "Cannot Get Frame") && count >= 1) {
         char *methodName, *className;
         for (i = 0; i < count; i++) {
