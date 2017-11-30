@@ -482,20 +482,14 @@ void Profiler::getLocalVariables(jthread thread) {
         for (i = 0; i < count; i++) {
             error = jvmti->GetMethodName(frames[i].method, &methodName, &sig, &gsig);
             if (checkJVMTIError(jvmti, error, "Cannot Get method name")) {
-                printf("Method: %s at Line: %ld with Signature:%s,%s within Class:%s\n", 
-                       methodName, frames[i].location, sig, gsig, className);
-
-printf("GetMethodDeclaringClass\n");
-
                 error = jvmti->GetMethodDeclaringClass(frames[i].method, &declaring_class_ptr);
                 if (!checkJVMTIError(jvmti, error, "Cannot Get method declaring class")) continue;
-
-printf("GetClassSignature\n");
 
                 error = jvmti->GetClassSignature(declaring_class_ptr,&className, NULL);
                 if (!checkJVMTIError(jvmti, error, "Cannot get class signature")) continue;
 
-printf("GetLocalVariableTable\n");
+                printf("Method: %s at Line: %ld with Signature:%s,%s within Class:%s\n", 
+                       methodName, frames[i].location, sig, gsig, className);
 
                 error = jvmti->GetLocalVariableTable(frames[i].method, &entry_count_ptr, &table_ptr);
                 if (!checkJVMTIError(jvmti, error, "Cannot Get Local Variable Table")) { 
@@ -503,8 +497,6 @@ printf("GetLocalVariableTable\n");
                            methodName, frames[i].location, sig, gsig, className);
                     continue;
                 }
-
-printf("GetLocals\n");
 
                 if (strstr(className, "java") == NULL
                         && strstr(className, "javax") == NULL
