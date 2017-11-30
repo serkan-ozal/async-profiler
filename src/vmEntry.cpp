@@ -35,6 +35,7 @@ bool VM::init(JavaVM* vm) {
     capabilities.can_get_constant_pool = 1;
     capabilities.can_get_source_file_name = 1;
     capabilities.can_get_line_numbers = 1;
+    capabilities.can_access_local_variables = 1;
     capabilities.can_generate_compiled_method_load_events = 1;
     _jvmti->AddCapabilities(&capabilities);
 

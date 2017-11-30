@@ -62,3 +62,8 @@ Java_com_opsgenie_thundra_profile_AsyncProfiler_dumpMethods(JNIEnv* env, jclass 
     Profiler::_instance.dumpMethods(out);
     return env->NewStringUTF(out.str().c_str());
 }
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_opsgenie_thundra_profile_AsyncProfiler_getLocalVariables(JNIEnv* env, jclass clazz, jthread thread) {
+    Profiler::_instance.getLocalVariables(thread);
+}

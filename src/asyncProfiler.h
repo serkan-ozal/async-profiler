@@ -144,4 +144,8 @@ class Profiler {
     void dumpTraces(std::ostream& out, int max_traces, u64 thread_profiler_id = -1);
     void dumpMethods(std::ostream& out);
     void recordSample(void* ucontext);
+
+    bool checkJVMTIError(jvmtiEnv *jvmti, jvmtiError errnum, const char *str);
+    void getLocalVariables(jthread thread);
+
 };

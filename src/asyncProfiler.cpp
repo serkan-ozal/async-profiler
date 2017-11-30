@@ -450,3 +450,142 @@ void Profiler::dumpMethods(std::ostream& out) {
         free(snapshot_methods);
     }
 }
+
+bool Profiler::checkJVMTIError(jvmtiEnv *jvmti, jvmtiError errnum, const char *str) {
+    if (errnum != JVMTI_ERROR_NONE) {
+        char *errnum_str;
+        errnum_str = NULL;
+        (void) jvmti->GetErrorName(errnum, &errnum_str);
+        printf("ERROR: JVMTI: %d(%s): %s\n", errnum,
+                (errnum_str == NULL ? "Unknown" : errnum_str),
+                (str == NULL ? "" : str));
+        return false;
+    }
+    return true;
+}
+
+void Profiler::getLocalVariables(jthread thread) {
+    jvmtiEnv*jvmti = VM::jvmti();
+    JNIEnv *env = VM::jni();
+
+    jvmtiFrameInfo frames[10];
+    jint count, entry_count_ptr;
+    int i, j;
+    jvmtiError error;
+    char *sig, *gsig;
+    jclass declaring_class_ptr;
+    jvmtiLocalVariableEntry *table_ptr;
+
+    error = jvmti->GetStackTrace(thread, 0, 10, frames, &count);
+    if (checkJVMTIError(jvmti, error, "Cannot Get Frame") && count >= 1) {
+        char *methodName, *className;
+        for (i = 0; i < count; i++) {
+            error = jvmti->GetMethodName(frames[i].method, &methodName, &sig, &gsig);
+            if (checkJVMTIError(jvmti, error, "Cannot Get method name")) {
+                printf("Method: %s at Line: %ld with Signature:%s,%s within Class:%s\n", 
+                       methodName, frames[i].location, sig, gsig, className);
+
+                error = jvmti->GetMethodDeclaringClass(frames[i].method, &declaring_class_ptr);
+                if (!checkJVMTIError(jvmti, error, "Cannot Get method declaring class")) continue;
+
+                error = jvmti->GetClassSignature(declaring_class_ptr,&className, NULL);
+                if (!checkJVMTIError(jvmti, error, "Cannot get class signature")) continue;
+
+                error = jvmti->GetLocalVariableTable(frames[i].method, &entry_count_ptr, &table_ptr);
+                if (!checkJVMTIError(jvmti, error, "Cannot Get Local Variable Table")) { 
+                    printf("Got Exception in  Method: %s at Line: %ld with Signature:%s,%s within Class:%s\n",
+                           methodName, frames[i].location, sig, gsig, className);
+                    continue;
+                }
+
+                if (strstr(className, "java") == NULL
+                        && strstr(className, "javax") == NULL
+                        && strstr(className, "sun") == NULL) {
+                    for (j = 0; j < entry_count_ptr; j++) {
+                        switch (*(table_ptr[j].signature)) {
+                            case 'B': {
+                                jint value_ptr;
+                                error = jvmti->GetLocalInt(thread, i, table_ptr[j].slot, &value_ptr);
+                                checkJVMTIError(jvmti, error, "Cannot Get Local Variable Byte");
+
+                                printf("\t- %s (%s): %d\n", table_ptr[j].name, table_ptr[j].signature, (jbyte)value_ptr);
+                                break;
+                            }
+
+                            case 'C': {
+                                jint value_ptr;
+                                error = jvmti->GetLocalInt(thread, i, table_ptr[j].slot, &value_ptr);
+                                checkJVMTIError(jvmti, error, "Cannot Get Local Variable Char");
+
+                                printf("\t- %s (%s): %c\n", table_ptr[j].name, table_ptr[j].signature, (jchar)value_ptr);
+                                break;
+                            }
+                            case 'D': {
+                                jdouble value_ptr;
+                                error = jvmti->GetLocalDouble(thread, i, table_ptr[j].slot, &value_ptr);
+                                checkJVMTIError(jvmti, error, "Cannot Get Local Variable Double");
+
+                                printf("\t- %s (%s): %f\n", table_ptr[j].name, table_ptr[j].signature, value_ptr);
+                                break;
+                            }
+                            case 'F': {
+                                jfloat value_ptr;
+                                error = jvmti->GetLocalFloat(thread, i, table_ptr[j].slot, &value_ptr);
+                                checkJVMTIError(jvmti, error, "Cannot Get Local Variable Float");
+
+                                printf("\t- %s (%s): %f\n", table_ptr[j].name, table_ptr[j].signature, value_ptr);
+                                break;
+                            }
+                            case 'I': {
+                                jint value_ptr;
+                                error = jvmti->GetLocalInt(thread, i, table_ptr[j].slot, &value_ptr);
+                                checkJVMTIError(jvmti, error, "Cannot Get Local Variable Integer");
+
+                                printf("\t- %s (%s): %d\n", table_ptr[j].name, table_ptr[j].signature, value_ptr);
+                                break;
+                            }
+                            case 'J': {
+                                jlong value_ptr;
+                                error = jvmti->GetLocalLong(thread, i, table_ptr[j].slot, &value_ptr);
+                                checkJVMTIError(jvmti, error, "Cannot Get Local Variable Long");
+
+                                printf("\t- %s (%s): %ld\n", table_ptr[j].name, table_ptr[j].signature, value_ptr);
+                                break;
+                            }
+                            case 'S':{
+                                jint value_ptr;
+                                error = jvmti->GetLocalInt(thread, i, table_ptr[j].slot, &value_ptr);
+                                checkJVMTIError(jvmti, error, "Cannot Get Local Variable Short");
+
+                                printf("\t- %s (%s): %d\n", table_ptr[j].name, table_ptr[j].signature, (jshort)value_ptr);
+                                break;
+                            }
+                            case 'Z':{
+                                jint value_ptr;
+                                error = jvmti->GetLocalInt(thread, i, table_ptr[j].slot, &value_ptr);
+                                checkJVMTIError(jvmti, error, "Cannot Get Local Variable Boolean");
+
+                                printf("\t- %s (%s): %d\n", table_ptr[j].name, table_ptr[j].signature, (jboolean)value_ptr);
+                                break;
+                            }
+                            case 'L':{
+                                jobject value_ptr;
+                                error = jvmti->GetLocalObject(thread, i, table_ptr[j].slot, &value_ptr);
+                                checkJVMTIError(jvmti, error, "Cannot Get Local Variable Object");
+
+                                printf("\t- %s (%s): <object>\n", table_ptr[j].name, table_ptr[j].signature);
+                                break;
+                            }
+                            default:
+                                printf("\t- %s (%s): <not-supported type>\n", table_ptr[j].name, table_ptr[j].signature);
+                        }
+
+                        // printf("\tField Signature:%s\n", table_ptr[j].signature);
+                    }
+                }
+
+            }
+        }
+    }
+
+}
