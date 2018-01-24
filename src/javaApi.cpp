@@ -15,6 +15,7 @@
  */
 
 // Modified by Serkan ÖZAL on 15/02/2017
+// Modified by Serkan ÖZAL on 24/02/2018
 
 #include <sstream>
 #include "asyncProfiler.h"
@@ -40,10 +41,10 @@ Java_com_opsgenie_thundra_profile_AsyncProfiler_getSamples(JNIEnv* env, jclass c
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_opsgenie_thundra_profile_AsyncProfiler_dumpRawTraces(JNIEnv* env, jclass clazz) {
+Java_com_opsgenie_thundra_profile_AsyncProfiler_dumpRawTraces(JNIEnv* env, jclass clazz, jint max_traces) {
     std::ostringstream out;
     Profiler::_instance.summary(out);
-    Profiler::_instance.dumpRawTraces(out);
+    Profiler::_instance.dumpRawTraces(out, max_traces);
     return env->NewStringUTF(out.str().c_str());
 }
 
@@ -56,14 +57,16 @@ Java_com_opsgenie_thundra_profile_AsyncProfiler_dumpTraces(JNIEnv* env, jclass c
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_opsgenie_thundra_profile_AsyncProfiler_dumpMethods(JNIEnv* env, jclass clazz) {
+Java_com_opsgenie_thundra_profile_AsyncProfiler_dumpMethods(JNIEnv* env, jclass clazz, jint max_traces) {
     std::ostringstream out;
     Profiler::_instance.summary(out);
-    Profiler::_instance.dumpMethods(out);
+    Profiler::_instance.dumpMethods(out, max_traces);
     return env->NewStringUTF(out.str().c_str());
 }
 
-extern "C" JNIEXPORT void JNICALL
-Java_com_opsgenie_thundra_profile_AsyncProfiler_getLocalVariables(JNIEnv* env, jclass clazz, jthread thread) {
-    Profiler::_instance.getLocalVariables(thread);
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_opsgenie_thundra_profile_AsyncProfiler_dumpFlameGraph(JNIEnv* env, jclass clazz, jint max_traces) {
+    std::ostringstream out;
+    Profiler::_instance.dumpFlameGraph(out, max_traces);
+    return env->NewStringUTF(out.str().c_str());
 }

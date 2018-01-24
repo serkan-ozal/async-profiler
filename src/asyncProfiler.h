@@ -15,6 +15,7 @@
  */
 
 // Modified by Serkan ÖZAL on 15/02/2017
+// Modified by Serkan ÖZAL on 24/02/2018
 
 #include <dlfcn.h>
 #include <jvmti.h>
@@ -136,16 +137,14 @@ class Profiler {
     int samples()     { return _calls_total; }
 
     u64 getThreadProfilerId();
+    void recordSample(void* ucontext);
     void frameBufferSize(int size);
     void start(int interval = DEFAULT_INTERVAL, int duration = DEFAULT_DURATION);
     void stop();
     void summary(std::ostream& out);
-    void dumpRawTraces(std::ostream& out);
-    void dumpTraces(std::ostream& out, int max_traces, u64 thread_profiler_id = -1);
-    void dumpMethods(std::ostream& out);
-    void recordSample(void* ucontext);
-
-    bool checkJVMTIError(jvmtiEnv *jvmti, jvmtiError errnum, const char *str);
-    void getLocalVariables(jthread thread);
+    void dumpRawTraces(std::ostream& out, int max_traces = MAX_CALLTRACES);
+    void dumpTraces(std::ostream& out, int max_traces = MAX_CALLTRACES, u64 thread_profiler_id = -1);
+    void dumpMethods(std::ostream& out, int max_traces = MAX_CALLTRACES);
+    void dumpFlameGraph(std::ostream& out, int max_traces = MAX_CALLTRACES);
 
 };
